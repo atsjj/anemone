@@ -37,6 +37,8 @@ module Anemone
       :user_agent => "Anemone/#{Anemone::VERSION}",
       # no delay between requests
       :delay => 0,
+      # In case delay is set, force threading (the delay will be per thread, not per process)
+      :force_threading => false,
       # don't obey the robots exclusion protocol
       :obey_robots_txt => false,
       # by default, don't limit the depth of the crawl
@@ -203,7 +205,7 @@ module Anemone
 
     def process_options
       @opts = DEFAULT_OPTS.merge @opts
-      @opts[:threads] = 1 if @opts[:delay] > 0
+      @opts[:threads] = 1 if @opts[:delay] > 0 && !@opts[:force_threading]
       storage = Anemone::Storage::Base.new(@opts[:storage] || Anemone::Storage.Hash)
       @pages = PageStore.new(storage)
       @robots = Robotex.new(@opts[:user_agent]) if @opts[:obey_robots_txt]
