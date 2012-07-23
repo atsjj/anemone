@@ -29,6 +29,7 @@ module Anemone
       res = @redis.brpoplpush @queue, @proc_queue, @timeout
       return nil unless res
       
+      @redis.lpop @proc_queue
       JSON.parse res
     end
 
