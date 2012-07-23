@@ -56,7 +56,13 @@ module Anemone
       # proxy server port number
       :proxy_port => false,
       # HTTP read timeout in seconds
-      :read_timeout => nil
+      :read_timeout => nil,
+      # In case Anemone runs on a cloud, coordinates the effort through a Redis queue
+      :distributed_queue => false,
+      # Options for the Redis-Queue (pages queue)
+      :distributed_pages_queue_opts => nil,
+      # Options for the Redis-Queue (links queue)
+      :distributed_links_queue_opts => nil
     }
 
     # Create setter methods for all options to be called from the crawl block
@@ -152,8 +158,8 @@ module Anemone
       @urls.delete_if { |url| !visit_link?(url) }
       return if @urls.empty?
 
-      link_queue = Queue.new
-      page_queue = Queue.new
+      link_queue = (@opts[:distributed_queue]) ? DistributedQueue.new(@opts[:distributed_links_queue_opts]) : Queue.new 
+      page_queue = (@opts[:distributed_queue]) ? DistributedQueue.new(@opts[:distributed_pages_queue_opts]) : Queue.new
 
       @opts[:threads].times do
         @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts).run }
