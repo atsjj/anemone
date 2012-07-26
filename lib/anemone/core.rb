@@ -61,10 +61,10 @@ module Anemone
       :read_timeout => nil,
       # In case Anemone runs on a cloud, coordinates the effort through a Redis queue
       :distributed_queue => false,
-      # Options for the Redis-Queue (pages queue)
-      :distributed_pages_queue_opts => nil,
       # Options for the Redis-Queue (links queue)
-      :distributed_links_queue_opts => nil
+      :distributed_links_queue_opts => nil,
+      # If working in distributed mode, never stop crawling (just wait for more data to come in)
+      :endless_crawling => false,
     }
 
     # Create setter methods for all options to be called from the crawl block
@@ -79,8 +79,11 @@ module Anemone
     # and optional *block*
     #
     def initialize(urls, opts = {})
-      @urls = [urls].flatten.map{ |url| url.is_a?(URI) ? url : URI(url) }
-      @urls.each{ |url| url.path = '/' if url.path.empty? }
+      
+      if urls
+        @urls = [urls].flatten.map{ |url| url.is_a?(URI) ? url : URI(url) }
+        @urls.each{ |url| url.path = '/' if url.path.empty? }
+      end
 
       @tentacles = []
       @on_every_page_blocks = []
@@ -157,18 +160,23 @@ module Anemone
     def run
       process_options
 
-      @urls.delete_if { |url| !visit_link?(url) }
-      return if @urls.empty?
+      if @urls
+        @urls.delete_if { |url| !visit_link?(url) }
+        return if @urls.empty?
+      end
 
-      link_queue = (@opts[:distributed_queue]) ? DistributedQueue.new(@opts[:distributed_links_queue_opts]) : Queue.new 
-      page_queue = (@opts[:distributed_queue]) ? DistributedQueue.new(@opts[:distributed_pages_queue_opts]) : Queue.new
+      distributed_link_queue = DistributedQueue.new(@opts[:distributed_links_queue_opts]) if @opts[:distributed_queue]
+      link_queue = Queue.new 
+      page_queue = Queue.new
 
       @opts[:threads].times do
         @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts).run }
       end
 
-      @urls.each{ |url| link_queue.enq(url) }
-
+      @urls.each{ |url| link_queue.enq(url.to_s) }
+      
+      load_from_distributed_queue distributed_link_queue, link_queue, 3 * @opts[:threads] if distributed_link_queue && !@urls
+      
       loop do
         page = page_queue.deq
         @pages.touch_key page.url
@@ -178,20 +186,27 @@ module Anemone
 
         links = links_to_follow page
         links.each do |link|
-          link_queue << [link, page.url.dup, page.depth + 1]
+          destination_queue = (distributed_link_queue) ? distributed_link_queue : link_queue 
+          destination_queue << [link.to_s, page.url.dup.to_s, page.depth + 1]
         end
         @pages.touch_keys links
 
         @pages[page.url] = page
+        
 
         # if we are done with the crawl, tell the threads to end
         if link_queue.empty? and page_queue.empty?
-          until link_queue.num_waiting == @tentacles.size
-            Thread.pass
-          end
-          if page_queue.empty?
-            @tentacles.size.times { link_queue << :END }
-            break
+          if distributed_link_queue 
+            
+            if !@opts[:endless_crawling]
+               load_from_distributed_queue(distributed_link_queue, link_queue, 3 * @opts[:threads]) if distributed_link_queue.size > 0
+               break if page_queue.empty? && wait_for_shutdown(link_queue, page_queue)
+            else
+              load_from_distributed_queue(distributed_link_queue, link_queue, 3 * @opts[:threads])
+            end
+          else
+            #shut down
+            break if wait_for_shutdown(link_queue, page_queue)
           end
         end
       end
@@ -202,6 +217,33 @@ module Anemone
     end
 
     private
+    
+    def load_from_distributed_queue(distributed_link_queue, link_queue, n_items)
+      found = false
+      
+      while n_items > 0
+        url = distributed_link_queue.pop
+        break if url.nil? && found
+        next if url.nil?
+        
+        found = true
+        link_queue.enq(url)
+        n_items-=1
+      end
+    end
+
+    def wait_for_shutdown(link_queue, page_queue)
+      until link_queue.num_waiting == @tentacles.size
+        Thread.pass
+      end
+
+      if page_queue.empty?
+        @tentacles.size.times { link_queue << :END }
+        return true
+      end
+      
+      false
+    end
 
     def process_options
       @opts = DEFAULT_OPTS.merge @opts
