@@ -20,17 +20,17 @@ module Anemone
     end
 
     def push(obj)
-      return unless obj
-    
-      @redis.lpush @queue, obj.to_json
+      obj = { 'data'=>obj }
+      @redis.lpush( @queue, obj.to_json )
     end
     
     def pop(non_block=true)
       res = @redis.brpoplpush @queue, @proc_queue, @timeout
       return nil unless res
-      
       @redis.lpop @proc_queue
-      JSON.parse res
+
+      ret = JSON.parse res
+      ret ? ret['data'] : nil
     end
 
     def length
