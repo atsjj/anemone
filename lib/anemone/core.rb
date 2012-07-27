@@ -16,7 +16,11 @@ module Anemone
   # Convenience method to start a crawl
   #
   def Anemone.crawl(urls, options = {}, &block)
-    Core.crawl(urls, options, &block)
+    if options[:logger]
+      logger = options[:logger]
+      options.delete :logger
+    end
+    Core.crawl(urls, options, logger, &block)
   end
 
   class Core
@@ -78,7 +82,7 @@ module Anemone
     # Initialize the crawl with starting *urls* (single URL or Array of URLs)
     # and optional *block*
     #
-    def initialize(urls, opts = {})
+    def initialize(urls, opts = {}, logger=nil)
       
       if urls
         @urls = [urls].flatten.map{ |url| url.is_a?(URI) ? url : URI(url) }
@@ -91,6 +95,7 @@ module Anemone
       @skip_link_patterns = []
       @after_crawl_blocks = []
       @opts = opts
+      @logger = logger
 
       yield self if block_given?
     end
@@ -98,8 +103,8 @@ module Anemone
     #
     # Convenience method to start a new crawl
     #
-    def self.crawl(urls, opts = {})
-      self.new(urls, opts) do |core|
+    def self.crawl(urls, opts = {}, logger=nil)
+    self.new(urls, opts, logger) do |core|
         yield core if block_given?
         core.run
       end
@@ -170,17 +175,22 @@ module Anemone
       page_queue = Queue.new
 
       @opts[:threads].times do
-        @tentacles << Thread.new { Tentacle.new(link_queue, page_queue, @opts).run }
+        @tentacles << Thread.new { 
+          t = Tentacle.new(link_queue, page_queue, @opts)
+          t.logger= @logger
+          t.run 
+        }
       end
 
       @urls.each{ |url| link_queue.enq(url.to_s) }
+      @urls.each{ |url| link_queue.enq(url.to_s) }  if @urls
       
       load_from_distributed_queue distributed_link_queue, link_queue, 3 * @opts[:threads] if distributed_link_queue && !@urls
       
       loop do
         page = page_queue.deq
         @pages.touch_key page.url
-        puts "#{page.url} Queue: #{link_queue.size}" if @opts[:verbose]
+        @logger.info "Processing page #{page.url} [links: #{link_queue.size}] [pages: #{page_queue.size}]" if @logger
         do_page_blocks page
         page.discard_doc! if @opts[:discard_page_bodies]
 

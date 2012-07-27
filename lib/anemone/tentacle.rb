@@ -13,6 +13,10 @@ module Anemone
       @opts = opts
     end
 
+    def logger=(logger)
+      @logger=logger
+    end
+
     #
     # Gets links from @link_queue, and returns the fetched
     # Page objects into @page_queue
@@ -23,6 +27,7 @@ module Anemone
 
         break if link == :END
 
+        @logger.info "Downloading page - #{link}" if @logger
         @http.fetch_pages(link, referer, depth).each { |page| @page_queue << page }
 
         delay
