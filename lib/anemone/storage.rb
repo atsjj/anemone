@@ -23,11 +23,11 @@ module Anemone
       self::KyotoCabinet.new(file)
     end
 
-    def self.MongoDB(mongo_db = nil, collection_name = 'pages')
+    def self.MongoDB(mongo_db = nil, collection_name = 'pages', opts = {})
       require 'anemone/storage/mongodb'
       mongo_db ||= Mongo::Connection.new.db('anemone')
       raise "First argument must be an instance of Mongo::DB" unless mongo_db.is_a?(Mongo::DB)
-      self::MongoDB.new(mongo_db, collection_name)
+      self::MongoDB.new(mongo_db, collection_name, opts)
     end
 
     def self.Redis(opts = {})

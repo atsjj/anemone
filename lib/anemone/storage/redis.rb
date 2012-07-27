@@ -9,7 +9,10 @@ module Anemone
       def initialize(opts = {})
         @redis = ::Redis.new(opts)
         @key_prefix = opts[:key_prefix] || 'anemone'
-        keys.each { |key| delete(key) }
+        
+        unless opts[:preserve_storage_on_start]
+          keys.each { |key| delete(key) }
+        end
       end
 
       def [](key)

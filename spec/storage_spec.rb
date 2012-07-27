@@ -62,11 +62,24 @@ module Anemone
         store.should be_an_instance_of(Anemone::Storage::MongoDB)
         store.close
       end
+
+      it "returns a MongoDB adapter w/o destroying existing data" do
+        store = Anemone::Storage.MongoDB nil, 'pages', :preserve_storage_on_start=>true
+        store.should be_an_instance_of(Anemone::Storage::MongoDB)
+        store.close
+      end
     end
 
-    describe ".MongoDB" do
+    describe ".Redis" do
       it "returns a Redis adapter" do
         store = Anemone::Storage.Redis
+        store.should be_an_instance_of(Anemone::Storage::Redis)
+        store.close
+      end
+      
+      
+      it "returns a Redis adapter w/o destroying existing data" do
+        store = Anemone::Storage.Redis :preserve_storage_on_start=>true
         store.should be_an_instance_of(Anemone::Storage::Redis)
         store.close
       end

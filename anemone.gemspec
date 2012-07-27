@@ -1,6 +1,6 @@
 spec = Gem::Specification.new do |s|
   s.name = "anemone"
-  s.version = "0.7.2"
+  s.version = "0.7.3"
   s.author = "Chris Kite"
   s.homepage = "http://anemone.rubyforge.org"
   s.rubyforge_project = "anemone"
@@ -24,6 +24,7 @@ spec = Gem::Specification.new do |s|
   s.add_development_dependency "tokyocabinet", ">=1.29"
   s.add_development_dependency "kyotocabinet-ruby", ">=1.27.1"
   s.add_development_dependency "sqlite3", ">=1.3.4"
+  s.add_development_dependency "json", ">=1.7.3"
 
   s.files = %w[
     VERSION

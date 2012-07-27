@@ -215,7 +215,7 @@ module Anemone
             page.depth.should == i
 
             if previous_page
-              page.referer.should == previous_page.url
+              page.referer.to_s.should == previous_page.url.to_s
             else
               page.referer.should be_nil
             end
@@ -233,9 +233,18 @@ module Anemone
 
     describe Hash do
       it_should_behave_like "crawl"
-
+     
       before(:all) do
         @opts = {}
+      end
+    end
+        
+    describe 'Crawl on distributed queue' do
+      it_should_behave_like "crawl"
+
+      before(:all) do
+        @opts = {:distributed_queue=>true,
+        :distributed_links_queue_opts=>{:distributed_queue=>"anemone_linksq_test", :distributed_queue_timeout=>1}}
       end
     end
 
