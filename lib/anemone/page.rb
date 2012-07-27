@@ -55,7 +55,7 @@ module Anemone
     # Array of distinct A tag HREFs from the page
     #
     def links
-      return @links unless @links.nil?
+      return @links if !@links.nil? && !@links.empty?
       @links = []
       return @links if !doc
 

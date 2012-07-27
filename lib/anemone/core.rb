@@ -69,6 +69,9 @@ module Anemone
       :distributed_links_queue_opts => nil,
       # If working in distributed mode, never stop crawling (just wait for more data to come in)
       :endless_crawling => false,
+      # Number of outstanding pages when elaborating from the main queue
+      :links_local_buffer=>50,
+      
     }
 
     # Create setter methods for all options to be called from the crawl block
@@ -182,10 +185,9 @@ module Anemone
         }
       end
 
-      @urls.each{ |url| link_queue.enq(url.to_s) }
       @urls.each{ |url| link_queue.enq(url.to_s) }  if @urls
       
-      load_from_distributed_queue distributed_link_queue, link_queue, 3 * @opts[:threads] if distributed_link_queue && !@urls
+      load_from_distributed_queue distributed_link_queue, link_queue, @opts[:links_local_buffer] if distributed_link_queue
       
       loop do
         page = page_queue.deq
@@ -209,8 +211,8 @@ module Anemone
           if distributed_link_queue 
             
             if !@opts[:endless_crawling]
-               load_from_distributed_queue(distributed_link_queue, link_queue, 3 * @opts[:threads]) if distributed_link_queue.size > 0
-               break if page_queue.empty? && wait_for_shutdown(link_queue, page_queue)
+              load_from_distributed_queue(distributed_link_queue, link_queue, @opts[:links_local_buffer]) if distributed_link_queue.size > 0
+              break if page_queue.empty? && wait_for_shutdown(link_queue, page_queue)
             else
               load_from_distributed_queue(distributed_link_queue, link_queue, 3 * @opts[:threads])
             end
