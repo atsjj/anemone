@@ -37,11 +37,15 @@ module Anemone
         BINARY_FIELDS.each do |field|
           hash[field] = BSON::Binary.new(hash[field]) unless hash[field].nil?
         end
-        @collection.update(
-          {'url' => page.url.to_s},
-          hash,
-          :upsert => true
-        )
+        
+        if value = @collection.find_one('url' => url.to_s, :fields=>["url"])
+          @collection.update(
+            {'url' => page.url.to_s},
+            hash
+          )
+        else
+          @collection.insert(hash)
+        end
       end
 
       def delete(url)
