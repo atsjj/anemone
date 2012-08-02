@@ -21,6 +21,10 @@ module Anemone
         end
         
       end
+      
+      def collection
+        @collection
+      end
 
       def [](url)
         if value = @collection.find_one('url' => url.to_s)
