@@ -15,6 +15,7 @@ module Anemone
       @queue = opts[:distributed_queue] || 'anemoneq'
       @proc_queue = "bp_#{@queue}"
       @storage = storage
+      @timeout = opts[:distributed_queue_timeout] || 0
       
       unless opts[:preserve_storage_on_start]
         @redis.del @queue
