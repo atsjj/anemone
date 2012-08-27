@@ -180,7 +180,6 @@ module Anemone
       [:INT, :KILL, :TERM, :QUIT].each {|signal| trap(signal) { self.storage.close; exit } }
 
       if @opts[:distributed_queue]
-        storage = (opts[:storage].respond_to? :load_links) ? storage : nil
         distributed_link_queue = DistributedQueue.new(storage, @opts[:distributed_links_queue_opts]) 
       end
       
