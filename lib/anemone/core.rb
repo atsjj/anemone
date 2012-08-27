@@ -79,6 +79,10 @@ module Anemone
       define_method "#{key}=" do |value|
         @opts[key.to_sym] = value
       end
+      
+      define_method "#{key}" do
+        @opts[key.to_sym]
+      end
     end
 
     #
