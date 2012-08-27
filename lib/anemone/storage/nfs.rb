@@ -60,7 +60,27 @@ module Anemone
         content_exists?(url)
       end
 
-      def close; end
+      def close
+        dump_set_on_fs(@fetched_links, @fetched_path)       if @fetched_links.count > 0
+        dump_set_on_fs(@unfetched_links, @unfetched_path)   if @unfetched_links.count > 0
+      end
+      
+      def load_links(limit)
+        @semaphore.synchronize {
+        
+          if @unfetched_links.size > 0
+            existing_links = @unfetched_links.to_a
+            @unfetched_links.clear
+            return existing_links
+          end
+        
+          random_pagefile = Dir.entries(@unfetched_path).pop
+          
+          return load_set_from_fs("#{@unfetched_path}/#{random_pagefile}") if random_pagefile && (random_pagefile != '.' && random_pagefile != '..')
+          
+          nil
+        }        
+      end
       
     private
     
@@ -75,7 +95,7 @@ module Anemone
         path = url_to_path(url)
 
         return nil unless path
-        load_page(url)
+        load_page(path)
       end
       
       def insert_content(url, hash)
@@ -119,22 +139,7 @@ module Anemone
         
         File.open("#{path}/page.yml", "w") {|f| f.write(yaml_hash.to_yaml)}        
       end
-    
-      def load_links(limit)
-        @semaphore.synchronize {
-        
-          if @unfetched_links.size > 0
-            existing_links = @unfetched_links.to_a
-            @unfetched_links.clear
-            return existing_links
-          end
-        
-          random_pagefile = Dir.entries(@unfetched_path).pop
-          return load_set_from_fs("#{@unfetched_path}/#{@random_pagefile}")
-  
-          nil
-        }        
-      end
+
     
       def collected_link(link, fetched)
         @semaphore.synchronize {
@@ -142,16 +147,15 @@ module Anemone
             @unfetched_links.delete link
             @fetched_links << link
           
-            dump_set_on_fs(@fetched_links, @fetched_path)            
+            dump_set_on_fs(@fetched_links, @fetched_path) if @fetched_links.count >= LINK_BATCH_SIZE
             return
           end
         
           @unfetched_links << link
-          dump_set_on_fs(@unfetched_links, @unfetched_path) 
+          dump_set_on_fs(@unfetched_links, @unfetched_path)  if @unfetched_links.count >= LINK_BATCH_SIZE
         }
       end
       
-
       def load_set_from_fs(file)
         return nil unless File.exists? file
         
@@ -162,10 +166,9 @@ module Anemone
       end
 
       def dump_set_on_fs(set, path)
-        return if set.count <= LINK_BATCH_SIZE
-        
         links = set.to_a
-        File.open("#{path}/#{Digest::MD5.hexdigest(Time.now.to_i.to_s)}", 'w') {|f| links.each {|link|  f.write("#{link}\n") } }
+        file = "#{path}/#{Digest::MD5.hexdigest(Time.now.to_i.to_s)}"
+        File.open(file, 'w') {|f| links.each {|link|  f.write("#{link}\n") } }
         set.clear
       end
       
