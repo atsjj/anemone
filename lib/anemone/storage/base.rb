@@ -9,6 +9,8 @@ module Anemone
 
         # verify adapter conforms to this class's methods
         methods.each do |method|
+          next if method.to_s == 'load_links'
+          
           if !@adap.respond_to?(method.to_sym)
             raise "Storage adapter must support method #{method}"
           end
@@ -68,6 +70,14 @@ module Anemone
         @adap.has_key?(key)
         rescue
           raise GenericError, $!
+      end
+      
+      def load_links(limit)
+        if @adap.respond_to? "load_links"
+          @adap.load_links(limit)
+        end
+      rescue
+        raise GenericError, $!
       end
 
     end
