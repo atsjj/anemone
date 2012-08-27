@@ -174,8 +174,8 @@ module Anemone
       end
 
       if @opts[:distributed_queue]
-        mongo_collection = (opts[:storage].respond_to? :collection) ? opts[:storage].send(:collection) : nil
-        distributed_link_queue = DistributedQueue.new(mongo_collection, @opts[:distributed_links_queue_opts]) 
+        storage = (opts[:storage].respond_to? :load_links) ? storage : nil
+        distributed_link_queue = DistributedQueue.new(storage, @opts[:distributed_links_queue_opts]) 
       end
       
       link_queue = Queue.new 
