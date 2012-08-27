@@ -25,6 +25,15 @@ module Anemone
       def collection
         @collection
       end
+      
+      def load_links(limit)
+        res = []
+        @mongo_collection.find({"fetched"=>false}, :fields=>['url','referer','depth']).limit(limit).each {|record| 
+          res << [record['url'], record['referer'], record['depth']]
+        }
+        
+        res
+      end
 
       def [](url)
         if value = @collection.find_one('url' => url.to_s)
