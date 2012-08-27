@@ -10,13 +10,18 @@ module Anemone
 
       BINARY_FIELDS = %w(body headers data)
       YML_FILE = 'page.yml'
-      UNFETCHED_SIZE = 5000
+      LINK_BATCH_SIZE = 5000
 
-      def initialize(path, links_path)
+      def initialize(path, buckets=nil)
         @base_path = path
-        @links_path = links_path
-        @unfetched = Set.new
+        @unfetched_path = "#{@base_path}/_links"
+        @fetched_path = "#{@base_path}/_pages"
+        @unfetched_links = Set.new
+        @fetched_links = Set.new
         @semaphore = Mutex.new
+        @buckets = buckets
+        
+        [@base_path, @unfetched_path, @fetched_path].each {|directory| FileUtils.mkdir_p directory }
       end
 
       def [](url)
@@ -80,7 +85,12 @@ module Anemone
         write_page(path, hash)
       end
             
-      def remove_content(url)i
+      def remove_content(url)
+        path = url_to_path(url)
+
+        return unless path
+        FileUtils.rm_rf path
+      end
       
       def load_page(path)
         yml_file = "#{path}/#{YML_FILE}"
@@ -89,8 +99,7 @@ module Anemone
         hash = YAML.load_file(yml_file)
         
         BINARY_FIELDS.each do |field|
-          IO.read("#{path}/#{field}")
-          hash[field] = hash[field].to_s
+          hash[field] = File.open("#{path}/#{field}", 'r').read().to_s
         end
         
         Page.from_hash(hash)
@@ -102,54 +111,62 @@ module Anemone
         yaml_hash = {}
         hash.each do |field, value|
           if BINARY_FIELDS.include? field
-            IO.write("#{path}/#{field}", value)
+            File.open("#{path}/#{field}", 'w') {|f| f.write(value) }
           else
             yaml_hash[field] = value
           end
         end
         
-        File.open("#{path}/page.yml", "w") {|f| f.write(hash.to_yaml)}
-      #rescue TODO
-        
+        File.open("#{path}/page.yml", "w") {|f| f.write(yaml_hash.to_yaml)}        
       end
     
       def load_links(limit)
         @semaphore.synchronize {
         
-          if @unfetched_link.size > 0
-            existing_links = @unfetched_link.to_a
-            @unfetched_link = Set.new
+          if @unfetched_links.size > 0
+            existing_links = @unfetched_links.to_a
+            @unfetched_links.clear
             return existing_links
           end
         
-          random_pagefile = Dir.entries(@links_path).pop
-          if File.exists? "#{@links_path}/#{@random_pagefile}"
-            links = Marhal.load(IO.read("#{@links_path}/#{@random_pagefile}"))
-            File.delete "#{@links_path}/#{@random_pagefile}"
-            return links.to_a
-          end
+          random_pagefile = Dir.entries(@unfetched_path).pop
+          return load_set_from_fs("#{@unfetched_path}/#{@random_pagefile}")
   
           nil
-        }
-        
-      #rescue TODO 
-        end
+        }        
+      end
     
       def collected_link(link, fetched)
         @semaphore.synchronize {
           if fetched
-            @unfetched_link.delete link
+            @unfetched_links.delete link
+            @fetched_links << link
+          
+            dump_set_on_fs(@fetched_links, @fetched_path)            
             return
           end
         
-          @unfetched_link << link
-        
-          if @unfetched_link.count >= UNFETCHED_SIZE
-            IO.write("#{@links_path}/#{Digest::MD5.hexdigest(Time.now.to_i)}" , Marshal.dump(@unfetched_link))
-          end
-        
-          @unfetched_link = Set.new
+          @unfetched_links << link
+          dump_set_on_fs(@unfetched_links, @unfetched_path) 
         }
+      end
+      
+
+      def load_set_from_fs(file)
+        return nil unless File.exists? file
+        
+        content = File.open(file, "r").read()
+        File.delete file
+        
+        content.split "\n"
+      end
+
+      def dump_set_on_fs(set, path)
+        return if set.count <= LINK_BATCH_SIZE
+        
+        links = set.to_a
+        File.open("#{path}/#{Digest::MD5.hexdigest(Time.now.to_i.to_s)}", 'w') {|f| links.each {|link|  f.write("#{link}\n") } }
+        set.clear
       end
       
       # Convert an url to a path where to load/store files
