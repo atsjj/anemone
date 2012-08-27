@@ -176,6 +176,8 @@ module Anemone
         @urls.delete_if { |url| !visit_link?(url) }
         return if @urls.empty?
       end
+      
+      [:INT, :KILL, :TERM, :QUIT].each {|signal| trap(signal) { self.storage.close; exit } }
 
       if @opts[:distributed_queue]
         storage = (opts[:storage].respond_to? :load_links) ? storage : nil
