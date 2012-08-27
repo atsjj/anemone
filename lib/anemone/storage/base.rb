@@ -19,65 +19,65 @@ module Anemone
 
       def [](key)
         @adap[key]
-        rescue
-          puts key
-          raise RetrievalError, $! 
+    #    rescue
+    #      puts key
+    #      raise RetrievalError, $! 
       end
 
       def []=(key, value)
         @adap[key] = value
-        rescue
-          raise InsertionError, $!
+    #    rescue
+    #      raise InsertionError, $!
       end
 
       def delete(key)
         @adap.delete(key)
-        rescue
-          raise DeletionError, $!
+    #    rescue
+    #      raise DeletionError, $!
       end
 
       def each
         @adap.each { |k, v| yield k, v }
-        rescue
-          raise GenericError, $!
+    #    rescue
+    #      raise GenericError, $!
       end
 
       def merge!(hash)
         @adap.merge!(hash)
-        rescue
-          raise GenericError, $!
+    #    rescue
+    #      raise GenericError, $!
       end
 
       def close
         @adap.close
-        rescue
-          raise CloseError, $!
+    #    rescue
+    #      raise CloseError, $!
       end
 
       def size
         @adap.size
-        rescue
-          raise GenericError, $!
+    #    rescue
+    #      raise GenericError, $!
       end
 
       def keys
         @adap.keys
-        rescue
-          raise GenericError, $!
+     #   rescue
+     #      raise GenericError, $!
       end
 
       def has_key?(key)
         @adap.has_key?(key)
-        rescue
-          raise GenericError, $!
+     #   rescue
+    #      raise GenericError, $!
       end
       
       def load_links(limit)
         if @adap.respond_to? "load_links"
           @adap.load_links(limit)
         end
-      rescue
-        raise GenericError, $!
+     # rescue
+     #    raise GenericError, $!
       end
 
     end
