@@ -5,16 +5,16 @@ module Anemone
   class DistributedQueue
 
     @@max_redis_length = 2500
-    @@batch_to_import = 200
+    BATCH_TO_IMPORT = 200
 
     #
     # Create a new DistributedQueue
     #
-    def initialize(mongo_collection, opts = {})
+    def initialize(storage, opts = {})
       @redis = ::Redis.new(opts)
       @queue = opts[:distributed_queue] || 'anemoneq'
       @proc_queue = "bp_#{@queue}"
-      @mongo_collection = mongo_collection
+      @storage = storage
       
       unless opts[:preserve_storage_on_start]
         @redis.del @queue
@@ -23,9 +23,7 @@ module Anemone
     end
 
     def push(obj)
-      if length > @@max_redis_length
-        return
-      end
+      return if length > @@max_redis_length
       
       redis_push(obj)
     end
@@ -79,11 +77,11 @@ module Anemone
     end
 
     def load_from_mongo
-      return if @mongo_collection.nil?
+      return unless @storage
       
-      @mongo_collection.find({"fetched"=>false}, :fields=>['url','referer','depth']).limit(@@batch_to_import).each {|record| 
-        redis_push([record['url'], record['referer'], record['depth']])
-      }
+      links = @storage.load_links BATCH_TO_IMPORT
+      return unless links
+      links.each { |link| redis_push(link) }
     end
 
   end
