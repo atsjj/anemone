@@ -29,6 +29,12 @@ module Anemone
       raise "First argument must be an instance of Mongo::DB" unless mongo_db.is_a?(Mongo::DB)
       self::MongoDB.new(mongo_db, collection_name, opts)
     end
+    
+    def self.NFS(base_path, links_path)
+      raise "you have to specify a base path for the file system and a folder where to store temporary page link files"
+      self::NFS.new(base_path, links_path)
+    end
+    
 
     def self.Redis(opts = {})
       require 'anemone/storage/redis'
