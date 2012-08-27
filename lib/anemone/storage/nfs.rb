@@ -156,7 +156,7 @@ module Anemone
       def url_to_path(url_s)
         return nil unless url_s
         
-        url = (url_s.class == URI) ? url_s : URI.parse(url_s)
+        url = (url_s.class != String) ? url_s : URI.parse(url_s)
         bucket = url_to_bucket(url)
         
         base_path = (bucket && !bucket.empty?) ? "#{@base_path}/#{bucket}" : @base_path
@@ -166,7 +166,6 @@ module Anemone
       # MD5 of the URL path + create new path as block of 4 letters of the MD5
       # e.g. "eb0f/7e9d/1d52/1863/ca6d/afe0/effe/5da3"
       def url_to_md5_path(url)
-        url = (url.class == URI) ? url : URI.parse(url)
         md5_path = Digest::MD5.hexdigest url.path
         
         res = []
@@ -180,7 +179,6 @@ module Anemone
       def url_to_bucket(url)
         return nil unless @buckets
 
-        url = (url.class == URI) ? url : URI.parse(url)
         path = url.path
         @buckets.each { |bucket, bucket_path| return bucket_path if path.match(bucket) }
         
@@ -190,4 +188,3 @@ module Anemone
     end
   end
 end
-
