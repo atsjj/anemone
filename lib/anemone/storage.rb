@@ -30,9 +30,10 @@ module Anemone
       self::MongoDB.new(mongo_db, collection_name, opts)
     end
     
-    def self.NFS(base_path, links_path)
-      raise "you have to specify a base path for the file system and a folder where to store temporary page link files"
-      self::NFS.new(base_path, links_path)
+    def self.NFS(base_path, buckets = nil)
+      require 'anemone/storage/nfs'
+      raise "you have to specify a base path for the file system" unless base_path
+      self::NFS.new(base_path, buckets)
     end
     
 
